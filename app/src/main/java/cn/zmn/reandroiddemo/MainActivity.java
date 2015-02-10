@@ -2,69 +2,208 @@ package cn.zmn.reandroiddemo;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.util.Log;
+import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.Toast;
 
 import java.util.concurrent.TimeUnit;
 
+import rx.Observable;
+import rx.Observer;
 import rx.Subscription;
+import rx.android.schedulers.AndroidSchedulers;
+import rx.android.view.OnCheckedChangeEvent;
+import rx.android.view.OnClickEvent;
 import rx.android.view.ViewObservable;
+import rx.android.widget.OnTextChangeEvent;
 import rx.android.widget.WidgetObservable;
 import rx.functions.Action1;
 import rx.functions.Func1;
+import rx.functions.Func3;
 
-public class MainActivity extends Activity {
-    private static final String TAG = "MyActivity";
+public class MainActivity extends Activity implements TextWatcher{
+    private static final String TAG = "MainActivity";
     private Subscription _subscription;
-    EditText editName;
-    Func1<Object, Void> signalizer;
-    Button buttonOk;
+    EditText mEditText;
+    EditText mEditText2;
+    Button okBtn;
+    CheckBox checkButton;
+    boolean needCheck = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        editName = (EditText)findViewById(R.id.editName);
-        buttonOk = (Button)findViewById(R.id.buttonOk);
+        mEditText = (EditText)findViewById(R.id.editText1);
+        mEditText2 = (EditText)findViewById(R.id.editText2);
+        okBtn = (Button)findViewById(R.id.buttonOk);
+        checkButton = (CheckBox)findViewById(R.id.checkBox);
 
-        // OnTextChangeEvent や OnClickEvent をただの Void シグナルに変換
-        signalizer  = new Func1<Object, Void>() {
+        test3();
+    }
+
+    private void test3(){
+        checkButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton compoundButton, boolean b) {
+                needCheck = b;
+                if(needCheck){
+                    if(mEditText.getText().toString().equals("") || mEditText2.getText().toString().equals("")){
+                        okBtn.setEnabled(false);
+                    }else{
+                        okBtn.setEnabled(true);
+                    }
+                }else{
+                    okBtn.setEnabled(true);
+                }
+            }
+        });
+
+        mEditText.addTextChangedListener(this);
+        mEditText2.addTextChangedListener(this);
+
+//        mEditText.addTextChangedListener(new TextWatcher() {
+//            @Override
+//            public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+//
+//            }
+//
+//            @Override
+//            public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+//                if(needCheck){
+//                    if(charSequence.toString().equals("")){
+//                        okBtn.setEnabled(false);
+//                    }else{
+//                        okBtn.setEnabled(true);
+//                    }
+//                }
+//            }
+//
+//            @Override
+//            public void afterTextChanged(Editable editable) {
+//
+//            }
+//        });
+//
+//        mEditText2.addTextChangedListener(new TextWatcher() {
+//            @Override
+//            public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+//
+//            }
+//
+//            @Override
+//            public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+//                if(needCheck){
+//                    if(charSequence.toString().equals("")){
+//                        okBtn.setEnabled(false);
+//                    }else{
+//                        okBtn.setEnabled(true);
+//                    }
+//                }
+//            }
+//
+//            @Override
+//            public void afterTextChanged(Editable editable) {
+//
+//            }
+//        });
+
+        okBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Toast.makeText(MainActivity.this, mEditText.getText().toString(), Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    private void test2(){
+        Observable<Boolean> needCheckObservable = WidgetObservable.input(checkButton, true).map(new Func1<OnCheckedChangeEvent, Boolean>() {
+            @Override
+            public Boolean call(OnCheckedChangeEvent onCheckedChangeEvent) {
+                return onCheckedChangeEvent.value();
+            }
+        });
+
+        Observable<OnTextChangeEvent> editTextObservable = WidgetObservable.text(mEditText, true);
+        Observable<OnTextChangeEvent> editTextObservable2 = WidgetObservable.text(mEditText2, true);
+
+        Observable.combineLatest(needCheckObservable, editTextObservable, editTextObservable2, new Func3<Boolean, OnTextChangeEvent, OnTextChangeEvent, Boolean>() {
+            @Override
+            public Boolean call(Boolean aBoolean, OnTextChangeEvent onTextChangeEvent, OnTextChangeEvent onTextChangeEvent2) {
+                return aBoolean ? !TextUtils.isEmpty(onTextChangeEvent.text()) && !TextUtils.isEmpty(onTextChangeEvent2.text()) : true;
+            }
+        }).observeOn(AndroidSchedulers.mainThread())
+        .subscribe(new Observer<Boolean>() {
+            @Override
+            public void onCompleted() {
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+
+            }
+
+            @Override
+            public void onNext(Boolean aBoolean) {
+                okBtn.setEnabled(aBoolean);
+            }
+        });
+
+        ViewObservable.clicks(okBtn)
+        .observeOn(AndroidSchedulers.mainThread())
+        .subscribe(new Observer<OnClickEvent>() {
+            @Override
+            public void onCompleted() {
+
+            }
+
+            @Override
+            public void onError(Throwable e) {
+
+            }
+
+            @Override
+            public void onNext(OnClickEvent onClickEvent) {
+                Toast.makeText(MainActivity.this, mEditText.getText().toString() + " , " + mEditText2.getText().toString(), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+    }
+
+    private void test(){
+        Func1<Object, Void> signalizer  = new Func1<Object, Void>() {
             @Override
             public Void call(Object onClickEvent) {
                 return null;
             }
         };
-
-        test();
-    }
-
-    private void test(){
-        // 文字入力イベントのストリームと…
-        _subscription = WidgetObservable.text(editName).map(signalizer)
-                // ボタン押されたのストリームを合体
-                .mergeWith(ViewObservable.clicks(buttonOk).map(signalizer))
-                        // 3秒間なんもなかったらエラーにする
+         WidgetObservable.text(mEditText).map(signalizer)
+                .mergeWith(ViewObservable.clicks(okBtn).map(signalizer))
                 .timeout(3, TimeUnit.SECONDS)
                 .subscribe(new Action1<Void>() {
                     @Override
                     public void call(Void dummy) {
-                        // 何かアクションがあったらこっち
                         Log.d(TAG, "文字が入力されたか、ボタンが押されたよ");
                     }
                 }, new Action1<Throwable>() {
                     @Override
                     public void call(Throwable throwable) {
-                        // 3秒間何もなかったらこっち
                         runOnUiThread(new Runnable() {
                             @Override
                             public void run() {
                                 Toast.makeText(MainActivity.this,
                                         "３秒間何も操作がありませんでした", Toast.LENGTH_SHORT)
                                         .show();
-                                test();
+//                                test();
                             }
                         });
                     }
@@ -73,9 +212,29 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        // イベント系は無限ストリームだから開放してやらないとリークするはず
-        _subscription.unsubscribe();
+//        _subscription.unsubscribe();
         super.onDestroy();
+    }
+
+    @Override
+    public void beforeTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+
+    }
+
+    @Override
+    public void onTextChanged(CharSequence charSequence, int i, int i2, int i3) {
+        if(needCheck){
+            if(charSequence.toString().equals("")){
+                okBtn.setEnabled(false);
+            }else{
+                okBtn.setEnabled(true);
+            }
+        }
+    }
+
+    @Override
+    public void afterTextChanged(Editable editable) {
+
     }
 }
 
